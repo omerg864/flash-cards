@@ -5,6 +5,7 @@ import { email_regex, password_regex } from '../utils/regex.js';
 import bcrypt from 'bcryptjs';
 import { generateToken } from '../utils/jwt.js';
 import axios from 'axios';
+import sendEmail from '../utils/sendEmail.js';
 
 const register = asyncHandler(async (req, res, next) => {
 	const { name, email, password } = req.body;

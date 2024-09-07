@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "flash-cards",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

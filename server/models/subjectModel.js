@@ -16,9 +16,11 @@ const subjectScheme = mongoose.Schema({
             ref: 'Card'
         }
     ],
-    chatID: {
-        type: String,
-        default: ''
+    fileUri: {
+        type: String
+    },
+    fileType: {
+        type: String
     }
 }, { timestamps: true });
 

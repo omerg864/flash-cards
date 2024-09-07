@@ -1,0 +1,19 @@
+meta {
+  name: Generate Cards
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:5001/api/subject/:id/generate
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 66d30804b00e6eedbd1963ce
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2ZDMwNWZmNDk0OGFjZDEwY2M5NWQxMyIsImlhdCI6MTcyNTEwNTg3NSwiZXhwIjoxNzI3Njk3ODc1fQ.BYQvjXcHr1EjZsuKMk0Gjvye79uUmWYzi2TVccwJ-x4
+}

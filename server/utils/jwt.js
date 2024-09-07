@@ -6,7 +6,7 @@ const generateToken = (id) => {
 	});
 };
 
-export const decodeToken = (token) => {
+const decodeToken = (token) => {
 	try {
 		return jwt.verify(token, process.env.JWT_SECRET).id;
 	} catch (err) {

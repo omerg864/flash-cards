@@ -8,6 +8,9 @@ import mongoSanitize from 'express-mongo-sanitize';
 import cors from 'cors';
 import rateLimiterMiddleware from './middleware/rateLimiterMiddleware.js';
 import cookieParser from 'cookie-parser';
+import userRoutes from './routes/userRoutes.js';
+import subjectRoutes from './routes/subjectRoutes.js';
+import cardRoutes from './routes/cardRoutes.js';
 
 connectDB();
 
@@ -35,5 +38,8 @@ app.listen(PORT, () => {
 });
 
 // app.use('/api/name', name); use the route
+app.use('/api/user', userRoutes);
+app.use('/api/subject', subjectRoutes);
+app.use('/api/card', cardRoutes);
 
 app.use(errorHandler);

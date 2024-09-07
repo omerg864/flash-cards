@@ -1,5 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Subject from '../models/subjectModel.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 
 const createSubject = asyncHandler(async (req, res, next) => {
 	const { name } = req.body;
@@ -56,6 +58,68 @@ const getSubject = asyncHandler(async (req, res, next) => {
 	});
 });
 
+const uploadFile = asyncHandler(async (req, res, next) => {
+	const { id } = req.params;
+	const subject = await Subject.findById(id);
+	if (!subject) {
+		res.status(404);
+		throw new Error('Subject not found');
+	}
+	if (subject.user.toString() !== req.user._id.toString()) {
+		res.status(401);
+		throw new Error('Unauthorized');
+	}
+	const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
+	const file = req.files[0];
+	const result = await fileManager.uploadFile(file, {
+		displayName: `cards-${subject.name}-${new Date().toISOString()}-${
+			req.user._id
+		}`,
+	});
+	subject.fileUri = result.response.uri;
+	subject.fileType = result.response.type;
+	res.status(200).json({
+		success: true,
+	});
+});
+
+const generateCards = asyncHandler(async (req, res, next) => {
+	const { id } = req.params;
+	const { language } = req.body;
+	const subject = await Subject.findById(id);
+	if (!subject) {
+		res.status(404);
+		throw new Error('Subject not found');
+	}
+	if (subject.user.toString() !== req.user._id.toString()) {
+		res.status(401);
+		throw new Error('Unauthorized');
+	}
+	const prompt = `create me flash cards for ${subject.name} (${language}) in json format and write to me only the json`;
+	const promptWithFile = `create me flash cards from this file (${language}) in json format and write to me only the json`;
+	const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+	const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+	let result;
+	if(!subject.fileUri) {
+		result = await model.generateContent(prompt);
+	} else {
+		result = await model.generateContent(promptWithFile, {
+			fileUri: subject.fileUri,
+			fileType: subject.fileType,
+		});
+	}
+	const jsonRes = result.response
+		.text()
+		.replace('```json', '')
+		.replace('```', '');
+	console.log(jsonRes);
+	console.log(JSON.parse(jsonRes));
+	res.status(200).json({
+		success: true,
+		result: JSON.parse(jsonRes),
+	});
+});
+
 const updateSubject = asyncHandler(async (req, res, next) => {
 	const { id } = req.params;
 	const { name } = req.body;
@@ -80,4 +144,12 @@ const updateSubject = asyncHandler(async (req, res, next) => {
 	});
 });
 
-export { createSubject, getSubjects, deleteSubject, getSubject, updateSubject };
+export {
+	createSubject,
+	getSubjects,
+	deleteSubject,
+	getSubject,
+	updateSubject,
+	generateCards,
+	uploadFile,
+};
