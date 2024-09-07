@@ -7,18 +7,22 @@ const createManualCard = asyncHandler(async (req, res, next) => {
 		res.status(400);
 		throw new Error('Please fill all the fields');
 	}
-	const card = new Card({
-		front,
-		back,
-		subject,
-		user: req.user._id,
-	});
-	await card.save();
+	const card = await createCard(front, back, subject, req.user._id);
 	res.status(201).json({
 		success: true,
 		card,
 	});
 });
+
+const createCard = (front, back, subject, user) => {
+    const card = new Card({
+        front,
+        back,
+        subject,
+        user,
+    });
+    return card.save();
+}
 
 const deleteCard = asyncHandler(async (req, res, next) => {
 	const { id } = req.params;
@@ -37,4 +41,4 @@ const deleteCard = asyncHandler(async (req, res, next) => {
 	});
 });
 
-export { createManualCard, deleteCard };
+export { createManualCard, deleteCard, createCard };

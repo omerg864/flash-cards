@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import Subject from '../models/subjectModel.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
+import { createCard } from './cardController.js';
 
 const createSubject = asyncHandler(async (req, res, next) => {
 	const { name } = req.body;
@@ -78,6 +79,7 @@ const uploadFile = asyncHandler(async (req, res, next) => {
 	});
 	subject.fileUri = result.response.uri;
 	subject.fileType = result.response.type;
+	await subject.save();
 	res.status(200).json({
 		success: true,
 	});
@@ -108,15 +110,19 @@ const generateCards = asyncHandler(async (req, res, next) => {
 			fileType: subject.fileType,
 		});
 	}
-	const jsonRes = result.response
+	const jsonRes = JSON.parse(result.response
 		.text()
 		.replace('```json', '')
-		.replace('```', '');
-	console.log(jsonRes);
-	console.log(JSON.parse(jsonRes));
+		.replace('```', ''));
+	const promises = jsonRes.map((card) =>
+		createCard(card.front, card.back, id, req.user._id)
+	);
+	await Promise.all(promises);
+	subject.cards = subject.cards.concat(promises.map((p) => p._id));
+	await subject.save();
 	res.status(200).json({
 		success: true,
-		result: JSON.parse(jsonRes),
+		result: jsonRes,
 	});
 });
 
