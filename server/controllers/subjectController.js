@@ -3,6 +3,10 @@ import Subject from '../models/subjectModel.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { createCard } from './cardController.js';
+import { SchemaType } from '@google/generative-ai';
+import { createFile } from './fileController.js';
+import fs from 'fs';
+import path from 'path';
 
 const createSubject = asyncHandler(async (req, res, next) => {
 	const { name } = req.body;
@@ -70,15 +74,26 @@ const uploadFile = asyncHandler(async (req, res, next) => {
 		res.status(401);
 		throw new Error('Unauthorized');
 	}
+	if (!req.file) {
+		res.status(400);
+		throw new Error('Please upload a file');
+	}
+	const tempFilePath = path.join('/tmp', `tempfile-${Date.now()}.pdf`);
+
+	// Write the buffer (in this case, from req.file.buffer)
+	fs.writeFileSync(tempFilePath, req.file.buffer);
+
 	const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
-	const file = req.files[0];
-	const result = await fileManager.uploadFile(file, {
+	const result = await fileManager.uploadFile(tempFilePath, {
+		mimeType: 'application/pdf',
 		displayName: `cards-${subject.name}-${new Date().toISOString()}-${
 			req.user._id
 		}`,
 	});
-	subject.fileUri = result.response.uri;
-	subject.fileType = result.response.type;
+	fs.unlinkSync(tempFilePath);
+	console.log(result);
+	const fileObj = await createFile(result.file.uri, result.file.mimeType);
+	subject.files = subject.files.concat(fileObj._id);
 	await subject.save();
 	res.status(200).json({
 		success: true,
@@ -88,7 +103,7 @@ const uploadFile = asyncHandler(async (req, res, next) => {
 const generateCards = asyncHandler(async (req, res, next) => {
 	const { id } = req.params;
 	const { language } = req.body;
-	const subject = await Subject.findById(id);
+	const subject = await Subject.findById(id).populate('files');
 	if (!subject) {
 		res.status(404);
 		throw new Error('Subject not found');
@@ -97,25 +112,46 @@ const generateCards = asyncHandler(async (req, res, next) => {
 		res.status(401);
 		throw new Error('Unauthorized');
 	}
-	const prompt = `create me flash cards for ${subject.name} (${language}) in json format and write to me only the json`;
-	const promptWithFile = `create me flash cards from this file (${language}) in json format and write to me only the json`;
+	const prompt = `create me 10 flash cards for ${subject.name} (${language}) in JSON format (front and back)`;
+	const promptWithFile = `create me 10 flash cards from these files (${language}) in JSON format (front and back)`;
 	const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-	const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+	const model = genAI.getGenerativeModel({
+		model: 'gemini-1.5-flash',
+		generationConfig: {
+			responseMimeType: 'application/json',
+			responseSchema: {
+				type: SchemaType.ARRAY,
+				items: {
+					type: SchemaType.OBJECT,
+					properties: {
+						front: {
+							type: SchemaType.STRING,
+						},
+						back: {
+							type: SchemaType.STRING,
+						},
+					},
+				},
+			},
+		},
+	});
 	let result;
-	if (!subject.fileUri) {
+	if (!subject.files.length) {
 		result = await model.generateContent(prompt);
 	} else {
-		result = await model.generateContent(promptWithFile, {
-			fileUri: subject.fileUri,
-			fileType: subject.fileType,
-		});
+		result = await model.generateContent([
+			promptWithFile,
+			...subject.files.map((file) => ({
+				fileData: {
+					mimeType: file.type,
+					fileUri: file.uri,
+				},
+			})),
+		]);
 	}
-	const jsonRes = JSON.parse(
-		result.response.text().replace('```json', '').replace('```', '')
-	);
-	console.log(jsonRes);
+	const resultJSON = JSON.parse(result.response.text());
 	const cards = await Promise.all(
-		jsonRes.map((card) =>
+		resultJSON.map((card) =>
 			createCard(card.front, card.back, id, req.user._id)
 		)
 	);
@@ -123,7 +159,7 @@ const generateCards = asyncHandler(async (req, res, next) => {
 	await subject.save();
 	res.status(200).json({
 		success: true,
-		result: jsonRes,
+		result: resultJSON,
 	});
 });
 
