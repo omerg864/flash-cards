@@ -7,6 +7,7 @@ import { SchemaType } from '@google/generative-ai';
 import { createFile } from './fileController.js';
 import fs from 'fs';
 import path from 'path';
+import { deleteFile as deleteFileObject } from './fileController.js';
 
 const createSubject = asyncHandler(async (req, res, next) => {
 	const { name } = req.body;
@@ -48,7 +49,7 @@ const deleteSubject = asyncHandler(async (req, res, next) => {
 
 const getSubject = asyncHandler(async (req, res, next) => {
 	const { id } = req.params;
-	const subject = await Subject.findById(id).populate('cards');
+	const subject = await Subject.findById(id).populate('cards files');
 	if (!subject) {
 		res.status(404);
 		throw new Error('Subject not found');
@@ -107,6 +108,34 @@ const uploadFile = asyncHandler(async (req, res, next) => {
 	);
 	subject.files = subject.files.concat(fileObj._id);
 	await subject.save();
+	res.status(200).json({
+		success: true,
+	});
+});
+
+const deleteFile = asyncHandler(async (req, res, next) => {
+	const { id } = req.params;
+	const subject = await Subject.findById(id);
+	if (!subject) {
+		res.status(404);
+		throw new Error('Subject not found');
+	}
+	if (subject.user.toString() !== req.user._id.toString()) {
+		res.status(401);
+		throw new Error('Unauthorized');
+	}
+	const file = await getFile(id);
+	if (!file) {
+		res.status(404);
+		throw new Error('File not found');
+	}
+	const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
+	const promises = [];
+	promises.push(fileManager.deleteFile(file.name));
+	promises.push(deleteFileObject(file._id));
+	subject.files = subject.files.filter((file) => file._id.toString() !== id);
+	promises.push(subject.save());
+	await Promise.all(promises);
 	res.status(200).json({
 		success: true,
 	});
@@ -220,4 +249,5 @@ export {
 	updateSubject,
 	generateCards,
 	uploadFile,
+	deleteFile
 };

@@ -8,6 +8,7 @@ import {
 	getSubject,
 	generateCards,
 	uploadFile,
+	deleteFile,
 } from '../controllers/subjectController.js';
 import multer from 'multer';
 
@@ -26,5 +27,8 @@ router.route('/:id/generate').post(protectUser, generateCards);
 router
 	.route('/:id/upload')
 	.post(protectUser, upload.single('file'), uploadFile);
+router
+	.route('/:id/upload')
+	.delete(protectUser, deleteFile);
 
 export default router;

@@ -9,4 +9,12 @@ const createFile = (name, uri, type) => {
 	return file.save();
 };
 
-export { createFile };
+const getFile = async (id) => {
+    return await File.findById(id);
+};
+
+const deleteFile = async (id) => {
+    return await File.findByIdAndDelete(id);
+}
+
+export { createFile, getFile, deleteFile };
