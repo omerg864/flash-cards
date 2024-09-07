@@ -6,10 +6,18 @@ meta {
 
 post {
   url: http://localhost:5001/api/subject/:id/upload
-  body: none
-  auth: none
+  body: multipartForm
+  auth: bearer
 }
 
 params:path {
   id: 66dc7b4019fe353a44e83349
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2ZDMwNWZmNDk0OGFjZDEwY2M5NWQxMyIsImlhdCI6MTcyNTEwNTg3NSwiZXhwIjoxNzI3Njk3ODc1fQ.BYQvjXcHr1EjZsuKMk0Gjvye79uUmWYzi2TVccwJ-x4
+}
+
+body:multipart-form {
+  file: @file(/Users/omer/Downloads/סיכום בדידה 1.pdf)
 }

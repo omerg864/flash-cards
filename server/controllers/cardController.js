@@ -15,14 +15,14 @@ const createManualCard = asyncHandler(async (req, res, next) => {
 });
 
 const createCard = (front, back, subject, user) => {
-    const card = new Card({
-        front,
-        back,
-        subject,
-        user,
-    });
-    return card.save();
-}
+	const card = new Card({
+		front,
+		back,
+		subject,
+		user,
+	});
+	return card.save();
+};
 
 const deleteCard = asyncHandler(async (req, res, next) => {
 	const { id } = req.params;

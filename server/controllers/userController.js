@@ -280,6 +280,10 @@ const googleAuth = asyncHandler(async (req, res, next) => {
 	}
 });
 
+const resetGenerations = async () => {
+	await User.updateMany({ premium: false }, { generations: 2 });
+};
+
 export {
 	register,
 	login,
@@ -290,4 +294,5 @@ export {
 	resetPasswordEmail,
 	resetPasswordToken,
 	googleAuth,
+	resetGenerations,
 };

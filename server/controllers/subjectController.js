@@ -78,6 +78,14 @@ const uploadFile = asyncHandler(async (req, res, next) => {
 		res.status(400);
 		throw new Error('Please upload a file');
 	}
+	if (!req.user.premium) {
+		if (subject.files.length >= 5) {
+			res.status(400);
+			throw new Error(
+				'You have reached the maximum number of files allowed for free users'
+			);
+		}
+	}
 	const tempFilePath = path.join('/tmp', `tempfile-${Date.now()}.pdf`);
 
 	// Write the buffer (in this case, from req.file.buffer)
@@ -85,14 +93,18 @@ const uploadFile = asyncHandler(async (req, res, next) => {
 
 	const fileManager = new GoogleAIFileManager(process.env.GEMINI_API_KEY);
 	const result = await fileManager.uploadFile(tempFilePath, {
-		mimeType: 'application/pdf',
+		mimeType: req.file.mimetype,
 		displayName: `cards-${subject.name}-${new Date().toISOString()}-${
 			req.user._id
 		}`,
 	});
 	fs.unlinkSync(tempFilePath);
 	console.log(result);
-	const fileObj = await createFile(result.file.uri, result.file.mimeType);
+	const fileObj = await createFile(
+		result.file.name,
+		result.file.uri,
+		result.file.mimeType
+	);
 	subject.files = subject.files.concat(fileObj._id);
 	await subject.save();
 	res.status(200).json({
@@ -112,8 +124,20 @@ const generateCards = asyncHandler(async (req, res, next) => {
 		res.status(401);
 		throw new Error('Unauthorized');
 	}
-	const prompt = `create me 10 flash cards for ${subject.name} (${language}) in JSON format (front and back)`;
-	const promptWithFile = `create me 10 flash cards from these files (${language}) in JSON format (front and back)`;
+	if (!req.user.premium) {
+		if (req.user.generations <= 0) {
+			res.status(400);
+			throw new Error('You have no more generations left');
+		}
+		req.user.generations -= 1;
+		await req.user.save();
+	}
+	const prompt = `create me 10 flash cards for ${subject.name} in ${
+		language ? language : 'English'
+	} in JSON format (front and back)`;
+	const promptWithFile = `create me 10 flash cards from these files in ${
+		language ? language : 'English'
+	} in JSON format (front and back)`;
 	const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 	const model = genAI.getGenerativeModel({
 		model: 'gemini-1.5-flash',
@@ -149,6 +173,7 @@ const generateCards = asyncHandler(async (req, res, next) => {
 			})),
 		]);
 	}
+	console.log(result.response.text());
 	const resultJSON = JSON.parse(result.response.text());
 	const cards = await Promise.all(
 		resultJSON.map((card) =>
