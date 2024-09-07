@@ -102,7 +102,7 @@ const generateCards = asyncHandler(async (req, res, next) => {
 	const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 	const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 	let result;
-	if(!subject.fileUri) {
+	if (!subject.fileUri) {
 		result = await model.generateContent(prompt);
 	} else {
 		result = await model.generateContent(promptWithFile, {
@@ -110,15 +110,16 @@ const generateCards = asyncHandler(async (req, res, next) => {
 			fileType: subject.fileType,
 		});
 	}
-	const jsonRes = JSON.parse(result.response
-		.text()
-		.replace('```json', '')
-		.replace('```', ''));
-	const promises = jsonRes.map((card) =>
-		createCard(card.front, card.back, id, req.user._id)
+	const jsonRes = JSON.parse(
+		result.response.text().replace('```json', '').replace('```', '')
 	);
-	await Promise.all(promises);
-	subject.cards = subject.cards.concat(promises.map((p) => p._id));
+	console.log(jsonRes);
+	const cards = await Promise.all(
+		jsonRes.map((card) =>
+			createCard(card.front, card.back, id, req.user._id)
+		)
+	);
+	subject.cards = subject.cards.concat(cards.map((card) => card._id));
 	await subject.save();
 	res.status(200).json({
 		success: true,
